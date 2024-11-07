@@ -1,25 +1,216 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.11.35327.3
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pongg", "Pongg\Pongg.csproj", "{EE7FA703-4BB9-4042-A51A-1E1AF57D2FAF}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{EE7FA703-4BB9-4042-A51A-1E1AF57D2FAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EE7FA703-4BB9-4042-A51A-1E1AF57D2FAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EE7FA703-4BB9-4042-A51A-1E1AF57D2FAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EE7FA703-4BB9-4042-A51A-1E1AF57D2FAF}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {4B0CA012-3095-40E5-84B0-C85BA9E4E218}
-	EndGlobalSection
-EndGlobal
+using System;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
+namespace PongGame
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+            this.Load += Form1_Load;
+        }
+
+        [DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
+        private static extern IntPtr CreateRoundRectRgn(int nleftrect, int ntoprect, int nrightrect, int nbottomrect, int nwidthellipse, int nheightellipse);
+
+        Label p1;
+        Label p2;
+        Label ball;
+        Label messageLabel;
+        Label restartButton;
+        Timer gameTimer = new Timer();
+        Timer moveLeftTimer = new Timer();
+        Timer moveRightTimer = new Timer();
+        Timer moveUpTimer = new Timer();
+        Timer moveDownTimer = new Timer();
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            
+            moveLeftTimer.Tick += MoveLeftTick;
+            moveRightTimer.Tick += MoveRightTick;
+            moveUpTimer.Tick += MoveUpTick;
+            moveDownTimer.Tick += MoveDownTick;
+            gameTimer.Tick += GameTick;
+
+            
+            gameTimer.Interval = 1;
+            moveLeftTimer.Interval = 1;
+            moveRightTimer.Interval = 1;
+            moveDownTimer.Interval = 1;
+            moveUpTimer.Interval = 1;
+
+            
+            gameTimer.Enabled = true;
+
+            
+            this.Width = 970;
+            this.Height = 500;
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.Text = "Pong Game";
+            this.BackColor = Color.White;
+            this.ShowIcon = false;
+
+           
+            InitializeGameElements();
+
+            
+            ResetBallPositionAndDirection();
+        }
+
+        private void InitializeGameElements()
+        {
+            
+            p1 = new Label { Size = new Size(11, 134), Location = new Point(5, 146), BackColor = Color.Black };
+            p2 = new Label { Size = new Size(11, 134), Location = new Point(940, 147), BackColor = Color.Orange };
+
+            
+            ball = new Label { Size = new Size(20, 20), BackColor = Color.Black };
+            ball.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, ball.Width, ball.Height, ball.Width, ball.Height));
+
+            
+            messageLabel = new Label
+            {
+                Location = new Point(334, 179),
+                Size = new Size(500, 80),
+                Font = new Font(new FontFamily("Tahoma"), 36, FontStyle.Bold),
+                Visible = false
+            };
+
+            
+            restartButton = new Label
+            {
+                Location = new Point(782, 406),
+                Size = new Size(145, 47),
+                Font = new Font(new FontFamily("Tahoma"), 20, FontStyle.Bold),
+                Text = "Restart",
+                Visible = false
+            };
+            restartButton.Click += Restart_Click;
+
+            
+            this.Controls.Add(p1);
+            this.Controls.Add(p2);
+            this.Controls.Add(ball);
+            this.Controls.Add(messageLabel);
+            this.Controls.Add(restartButton);
+        }
+
+        private void Restart_Click(object sender, EventArgs e)
+        {
+            ResetBallPositionAndDirection();
+            restartButton.Visible = false;
+            messageLabel.Visible = false;
+        }
+
+        private void ResetBallPositionAndDirection()
+        {
+            
+            Random random = new Random();
+            ball.Left = random.Next(p1.Left + p1.Width, p2.Left - ball.Width);
+            ball.Top = random.Next(0, this.ClientSize.Height - ball.Height);
+
+            moveLeftTimer.Enabled = random.Next(0, 2) == 0;
+            moveRightTimer.Enabled = !moveLeftTimer.Enabled;
+            moveUpTimer.Enabled = random.Next(0, 2) == 0;
+            moveDownTimer.Enabled = !moveUpTimer.Enabled;
+        }
+
+        private void GameTick(object sender, EventArgs e)
+        {
+           
+            if (ball.Left >= p2.Left - p2.Width * 4)
+            {
+                p2.Top = ball.Top - (p2.Height / 2);
+            }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            
+            if (keyData == Keys.Down && p1.Bottom < this.ClientSize.Height)
+            {
+                p1.Top += 5;
+                return true;
+            }
+            if (keyData == Keys.Up && p1.Top > 0)
+            {
+                p1.Top -= 5;
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void MoveLeftTick(object sender, EventArgs e)
+        {
+            if (ball.Bounds.IntersectsWith(p2.Bounds))
+            {
+                moveLeftTimer.Enabled = false;
+                moveRightTimer.Enabled = true;
+            }
+            else if (ball.Right < this.ClientSize.Width)
+            {
+                ball.Left += 5;
+            }
+            else
+            {
+                messageLabel.Text = "You Win!";
+                messageLabel.ForeColor = Color.Gold;
+                messageLabel.Visible = true;
+                restartButton.Visible = true;
+                moveLeftTimer.Enabled = false;
+            }
+        }
+
+        private void MoveRightTick(object sender, EventArgs e)
+        {
+            if (ball.Bounds.IntersectsWith(p1.Bounds))
+            {
+                moveRightTimer.Enabled = false;
+                moveLeftTimer.Enabled = true;
+            }
+            else if (ball.Left > 0)
+            {
+                ball.Left -= 5;
+            }
+            else
+            {
+                messageLabel.Text = "Game Over";
+                messageLabel.ForeColor = Color.Black;
+                messageLabel.Visible = true;
+                restartButton.Visible = true;
+                moveRightTimer.Enabled = false;
+            }
+        }
+
+        private void MoveUpTick(object sender, EventArgs e)
+        {
+            if (ball.Top > 0)
+            {
+                ball.Top -= 3;
+            }
+            else
+            {
+                moveUpTimer.Enabled = false;
+                moveDownTimer.Enabled = true;
+            }
+        }
+
+        private void MoveDownTick(object sender, EventArgs e)
+        {
+            if (ball.Bottom < this.ClientSize.Height)
+            {
+                ball.Top += 3;
+            }
+            else
+            {
+                moveDownTimer.Enabled = false;
+                moveUpTimer.Enabled = true;
+            }
+        }
+    }
+}
